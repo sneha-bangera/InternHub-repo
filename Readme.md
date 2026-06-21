@@ -1,14 +1,16 @@
+
+
+
 # InternHub
 
-A full-stack internship aggregator that scrapes listings from **Internshala** and **LinkedIn**, ranks them against your skill profile using NLP, and sends **WhatsApp deadline reminders** — all in one unified dashboard.
+A full-stack internship aggregator that scrapes listings from **Internshala** and **LinkedIn**, ranks them against your skill profile using NLP, and sends deadline reminders, all in one unified dashboard.
 
 ---
 
 ## Demo
+https://github.com/user-attachments/assets/7207181a-bf15-4df6-b61e-5c66dccba882
 
-> 📹 _Add your screen recording here_
->
-> To embed a video on GitHub, record a demo (OBS, Loom, or Windows Game Bar `Win+G`), upload the `.mp4` directly into this README by editing it on GitHub and dragging the file in — GitHub auto-hosts it and inserts the link.
+
 
 ---
 
