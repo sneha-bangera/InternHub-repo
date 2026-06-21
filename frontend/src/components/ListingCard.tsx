@@ -105,7 +105,7 @@ export default function ListingCard({ listing }: { listing: Listing }) {
           </button>
           <a
             href={listing.apply_url} target="_blank" rel="noopener noreferrer"
-            className="text-xs px-3 py-1.5 rounded-lg bg-blue-600 text-white hover:bg-blue-700 transition-colors font-medium"
+            className="text-xs px-3 py-1.5 rounded-lg bg-blue-400 text-white hover:bg-blue-500 transition-colors font-medium"
           >
             Apply →
           </a>

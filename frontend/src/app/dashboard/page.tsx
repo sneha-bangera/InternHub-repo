@@ -64,7 +64,7 @@ export default function DashboardPage() {
             <p className="text-slate-500 text-sm mt-1">
               {data ? `${data.total} internships found` : "Loading…"}
               {useRanked && data && data.total > 0 && (
-                <span className="ml-2 text-blue-500">· ranked by skill match</span>
+                <span className="ml-2 text-blue-300">· ranked by skill match</span>
               )}
             </p>
           </div>
@@ -73,7 +73,7 @@ export default function DashboardPage() {
             onClick={() => { setUseRanked((r) => !r); setPage(1); }}
             className={`flex items-center gap-2 px-4 py-2 rounded-lg text-sm font-medium border transition-colors ${
               useRanked
-                ? "bg-blue-600 text-white border-blue-600"
+                ? "bg-blue-400 text-white border-blue-400"
                 : "bg-white text-slate-600 border-slate-300 hover:bg-slate-50"
             }`}
           >
@@ -89,10 +89,10 @@ export default function DashboardPage() {
               value={searchInput}
               onChange={(e) => setSearchInput(e.target.value)}
               placeholder="Search by title or company…"
-              className="flex-1 px-3 py-2 text-sm border border-slate-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
+              className="flex-1 px-3 py-2 text-sm border border-slate-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-300"
             />
             <button type="submit"
-              className="px-4 py-2 bg-blue-600 text-white text-sm font-medium rounded-lg hover:bg-blue-700 transition-colors">
+              className="px-4 py-2 bg-blue-400 text-white text-sm font-medium rounded-lg hover:bg-blue-500 transition-colors">
               Search
             </button>
             {search && (
@@ -108,7 +108,7 @@ export default function DashboardPage() {
               <button key={p} onClick={() => handlePlatform(p)}
                 className={`px-3 py-2 text-xs font-medium rounded-lg capitalize transition-colors ${
                   platform === p
-                    ? "bg-blue-600 text-white"
+                    ? "bg-blue-400 text-white"
                     : "bg-white border border-slate-300 text-slate-600 hover:bg-slate-50"
                 }`}>
                 {p}

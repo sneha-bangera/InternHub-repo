@@ -167,10 +167,10 @@ export default function ProfilePage() {
             <input
               type="tel" value={waNumber} onChange={(e) => setWaNumber(e.target.value)}
               placeholder="+919876543210"
-              className="flex-1 min-w-48 px-3 py-2 border border-slate-300 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-blue-500"
+              className="flex-1 min-w-48 px-3 py-2 border border-slate-300 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-blue-300"
             />
             <button type="submit" disabled={savingWa}
-              className="px-4 py-2 bg-blue-600 text-white text-sm font-medium rounded-lg hover:bg-blue-700 disabled:opacity-50 transition-colors">
+              className="px-4 py-2 bg-blue-400 text-white text-sm font-medium rounded-lg hover:bg-blue-500 disabled:opacity-50 transition-colors">
               {savingWa ? "Saving…" : "Save Number"}
             </button>
           </form>
@@ -201,14 +201,14 @@ export default function ProfilePage() {
             <input
               value={newSkill} onChange={(e) => setNewSkill(e.target.value)}
               placeholder="e.g. Python, React, SQL…"
-              className="flex-1 min-w-40 px-3 py-2 border border-slate-300 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-blue-500"
+              className="flex-1 min-w-40 px-3 py-2 border border-slate-300 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-blue-300"
             />
             <select value={proficiency} onChange={(e) => setProficiency(e.target.value)}
-              className="px-3 py-2 border border-slate-300 rounded-lg text-sm bg-white focus:outline-none focus:ring-2 focus:ring-blue-500">
+              className="px-3 py-2 border border-slate-300 rounded-lg text-sm bg-white focus:outline-none focus:ring-2 focus:ring-blue-300">
               {PROFICIENCY.map((p) => <option key={p} value={p}>{p}</option>)}
             </select>
             <button type="submit" disabled={addingSkill || !newSkill.trim()}
-              className="px-4 py-2 bg-blue-600 text-white text-sm font-medium rounded-lg hover:bg-blue-700 disabled:opacity-50 transition-colors">
+              className="px-4 py-2 bg-blue-400 text-white text-sm font-medium rounded-lg hover:bg-blue-500 disabled:opacity-50 transition-colors">
               {addingSkill ? "Adding…" : "+ Add"}
             </button>
           </form>

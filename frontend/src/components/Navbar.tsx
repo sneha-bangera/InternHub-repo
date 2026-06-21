@@ -16,7 +16,7 @@ export default function Navbar() {
   return (
     <nav className="border-b border-slate-200 bg-white sticky top-0 z-10">
       <div className="max-w-6xl mx-auto px-4 h-14 flex items-center justify-between">
-        <Link href="/dashboard" className="flex items-center gap-2 text-xl font-bold text-blue-600">
+        <Link href="/dashboard" className="flex items-center gap-2 text-xl font-bold text-blue-400">
           <Target size={22} />
           InternHub
         </Link>

@@ -28,14 +28,14 @@ export default function RegisterPage() {
   }
 
   return (
-    <div className="min-h-screen flex items-center justify-center bg-gradient-to-br from-slate-50 to-blue-50 px-4">
+    <div className="min-h-screen flex items-center justify-center bg-gradient-to-br from-slate-50 to-blue-100 px-4">
       <div className="w-full max-w-md bg-white rounded-2xl shadow-lg p-8">
         {/* <div className="mb-8 text-center">
           <h1 className="text-3xl font-bold text-blue-600"><Target size={22} /> InternHub</h1>
           <p className="text-slate-500 mt-1">Create your account</p>
         </div> */}
         <div className="mb-8 text-center">
-          <h1 className="flex items-center justify-center gap-2 text-3xl font-bold text-blue-600">
+          <h1 className="flex items-center justify-center gap-2 text-3xl font-bold text-blue-400">
             <Target size={28} />
             InternHub
           </h1>
@@ -53,7 +53,7 @@ export default function RegisterPage() {
             <label className="block text-sm font-medium text-slate-700 mb-1">Full Name</label>
             <input
               type="text" required value={form.full_name} onChange={set("full_name")}
-              className="w-full px-3 py-2 border border-slate-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 text-sm"
+              className="w-full px-3 py-2 border border-slate-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-300 text-sm"
               placeholder="Rahul Sharma"
             />
           </div>
@@ -61,7 +61,7 @@ export default function RegisterPage() {
             <label className="block text-sm font-medium text-slate-700 mb-1">Email</label>
             <input
               type="email" required value={form.email} onChange={set("email")}
-              className="w-full px-3 py-2 border border-slate-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 text-sm"
+              className="w-full px-3 py-2 border border-slate-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-300 text-sm"
               placeholder="you@example.com"
             />
           </div>
@@ -69,7 +69,7 @@ export default function RegisterPage() {
             <label className="block text-sm font-medium text-slate-700 mb-1">Password <span className="text-slate-400">(min 8 chars)</span></label>
             <input
               type="password" required minLength={8} value={form.password} onChange={set("password")}
-              className="w-full px-3 py-2 border border-slate-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 text-sm"
+              className="w-full px-3 py-2 border border-slate-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-300 text-sm"
               placeholder="••••••••"
             />
           </div>
@@ -79,13 +79,13 @@ export default function RegisterPage() {
             </label>
             <input
               type="tel" value={form.whatsapp_number} onChange={set("whatsapp_number")}
-              className="w-full px-3 py-2 border border-slate-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 text-sm"
+              className="w-full px-3 py-2 border border-slate-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-300 text-sm"
               placeholder="+919876543210"
             />
           </div>
           <button
             type="submit" disabled={loading}
-            className="w-full py-2.5 bg-blue-600 hover:bg-blue-700 disabled:opacity-60 text-white font-semibold rounded-lg transition-colors text-sm"
+            className="w-full py-2.5 bg-blue-400 hover:bg-blue-500 disabled:opacity-60 text-white font-semibold rounded-lg transition-colors text-sm"
           >
             {loading ? "Creating account…" : "Create Account"}
           </button>
@@ -93,7 +93,7 @@ export default function RegisterPage() {
 
         <p className="mt-6 text-center text-sm text-slate-500">
           Already have an account?{" "}
-          <Link href="/login" className="text-blue-600 hover:underline font-medium">Sign in</Link>
+          <Link href="/login" className="text-blue-400 hover:underline font-medium">Sign in</Link>
         </p>
       </div>
     </div>

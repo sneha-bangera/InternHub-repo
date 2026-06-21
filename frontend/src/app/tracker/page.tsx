@@ -88,7 +88,7 @@ function StatusBadge({ status, onChange }: { status: Status; onChange: (s: Statu
     <select
       value={status}
       onChange={(e) => onChange(e.target.value as Status)}
-      className={`text-xs font-semibold px-2 py-1 rounded-full border-0 cursor-pointer focus:outline-none focus:ring-2 focus:ring-offset-1 focus:ring-blue-400 ${meta.color} ${meta.bg}`}
+      className={`text-xs font-semibold px-2 py-1 rounded-full border-0 cursor-pointer focus:outline-none focus:ring-2 focus:ring-offset-1 focus:ring-blue-300 ${meta.color} ${meta.bg}`}
     >
       {STATUSES.map((s) => (
         <option key={s} value={s}>{STATUS_META[s].label}</option>
@@ -149,7 +149,7 @@ function NotesCell({ value, onSave }: { value: string | null; onSave: (v: string
   return (
     <span
       onClick={() => setEditing(true)}
-      className="text-xs text-slate-500 cursor-pointer hover:text-blue-600 block min-h-[1.5rem] group"
+      className="text-xs text-slate-500 cursor-pointer hover:text-blue-400 block min-h-[1.5rem] group"
       title="Click to edit"
     >
       {value || <span className="text-slate-300 group-hover:text-blue-300">+ add note</span>}
@@ -196,7 +196,7 @@ function KanbanColumn({
               </select>
               <div className="flex gap-1">
                 <a href={a.listing.apply_url} target="_blank" rel="noopener noreferrer"
-                  className="text-xs text-blue-500 hover:underline">Apply</a>
+                  className="text-xs text-blue-400 hover:underline">Apply</a>
                 <button onClick={() => onDelete(a.id)} className="text-xs text-slate-300 hover:text-red-400 ml-1">✕</button>
               </div>
             </div>
@@ -318,11 +318,11 @@ export default function TrackerPage() {
             {/* View toggle */}
             <div className="flex bg-white border border-slate-200 rounded-lg overflow-hidden">
               <button onClick={() => setView("table")}
-                className={`px-3 py-2 text-sm font-medium transition-colors ${view === "table" ? "bg-blue-600 text-white" : "text-slate-600 hover:bg-slate-50"}`}>
+                className={`px-3 py-2 text-sm font-medium transition-colors ${view === "table" ? "bg-blue-400 text-white" : "text-slate-600 hover:bg-slate-50"}`}>
                 ☰ Table
               </button>
               <button onClick={() => setView("kanban")}
-                className={`px-3 py-2 text-sm font-medium transition-colors ${view === "kanban" ? "bg-blue-600 text-white" : "text-slate-600 hover:bg-slate-50"}`}>
+                className={`px-3 py-2 text-sm font-medium transition-colors ${view === "kanban" ? "bg-blue-400 text-white" : "text-slate-600 hover:bg-slate-50"}`}>
                 ⊞ Kanban
               </button>
             </div>
@@ -371,7 +371,7 @@ export default function TrackerPage() {
           <input
             value={search} onChange={(e) => setSearch(e.target.value)}
             placeholder="Search by title, company or location…"
-            className="flex-1 min-w-60 px-3 py-2 text-sm border border-slate-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 bg-white"
+            className="flex-1 min-w-60 px-3 py-2 text-sm border border-slate-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-300 bg-white"
           />
           {filterStatus !== "all" && (
             <button onClick={() => setFilterStatus("all")}
@@ -392,7 +392,7 @@ export default function TrackerPage() {
           <div className="text-center py-20 text-slate-400">
             <p className="text-4xl mb-3">📋</p>
             <p className="font-medium">No applications yet</p>
-            <p className="text-sm mt-1">Save internships from the <a href="/dashboard" className="text-blue-500 hover:underline">dashboard</a> to track them here</p>
+            <p className="text-sm mt-1">Save internships from the <a href="/dashboard" className="text-blue-400 hover:underline">dashboard</a> to track them here</p>
           </div>
         ) : view === "kanban" ? (
 
@@ -442,7 +442,7 @@ export default function TrackerPage() {
                         {/* Role */}
                         <td className="px-4 py-3 max-w-[220px]">
                           <a href={a.listing.apply_url} target="_blank" rel="noopener noreferrer"
-                            className="font-medium text-slate-800 hover:text-blue-600 hover:underline line-clamp-2 block">
+                            className="font-medium text-slate-800 hover:text-blue-400 hover:underline line-clamp-2 block">
                             {a.listing.title}
                           </a>
                           {a.listing.location && (
