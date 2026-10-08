@@ -2,7 +2,7 @@ import uuid
 from datetime import datetime, timezone
 
 from sqlalchemy import (
-    Boolean, Column, Date, DateTime, Float, JSON,
+    Boolean, CheckConstraint, Column, Date, DateTime, Float, JSON,
     ForeignKey, String, Text, UniqueConstraint,
 )
 from sqlalchemy.dialects.postgresql import UUID
@@ -34,6 +34,9 @@ class User(Base):
     )
     job_targets = relationship(
         "JobTarget", back_populates="user", cascade="all, delete-orphan"
+    )
+    tailored_bullets = relationship(
+        "TailoredBullet", back_populates="user", cascade="all, delete-orphan"
     )
     resume_compile_jobs = relationship(
         "ResumeCompileJob", back_populates="user", cascade="all, delete-orphan"
@@ -221,6 +224,46 @@ class JobTarget(Base):
 
     user = relationship("User", back_populates="job_targets")
     listing = relationship("Listing")
+    tailored_bullets = relationship(
+        "TailoredBullet", back_populates="target", cascade="all, delete-orphan"
+    )
+
+
+class TailoredBullet(Base):
+    __tablename__ = "tailored_bullets"
+
+    id = Column(UUID(as_uuid=True), primary_key=True, default=uuid.uuid4)
+    user_id = Column(
+        UUID(as_uuid=True), ForeignKey("users.id", ondelete="CASCADE"),
+        nullable=False, index=True,
+    )
+    target_id = Column(
+        UUID(as_uuid=True), ForeignKey("job_targets.id", ondelete="CASCADE"),
+        nullable=False, index=True,
+    )
+    project_id = Column(
+        UUID(as_uuid=True), ForeignKey("resume_projects.id", ondelete="CASCADE"),
+        nullable=False, index=True,
+    )
+    original = Column(Text, nullable=False)
+    rewritten = Column(Text, nullable=False)
+    keywords_used = Column(JSON, nullable=False, default=list)
+    unverified_tokens = Column(JSON, nullable=False, default=list)
+    status = Column(String(20), nullable=False, default="pending")
+
+    __table_args__ = (
+        UniqueConstraint(
+            "target_id", "project_id", "original",
+            name="uq_tailored_bullet_target_project_original",
+        ),
+        CheckConstraint(
+            "status IN ('pending', 'accepted', 'rejected', 'edited', 'unverified')",
+            name="ck_tailored_bullets_status",
+        ),
+    )
+
+    user = relationship("User", back_populates="tailored_bullets")
+    target = relationship("JobTarget", back_populates="tailored_bullets")
 
 
 class ResumeCompileJob(Base):

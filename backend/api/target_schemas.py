@@ -1,8 +1,8 @@
 from datetime import datetime
-from typing import Optional
+from typing import Literal, Optional
 from uuid import UUID
 
-from pydantic import BaseModel, Field, model_validator
+from pydantic import BaseModel, Field, field_validator, model_validator
 
 from backend.api.resume_schemas import CertificateOut, ProjectOut, SkillOut
 
@@ -31,6 +31,54 @@ class JDParseResult(BaseModel):
     required_skills: list[str] = Field(default_factory=list)
     preferred_skills: list[str] = Field(default_factory=list)
     keywords: list[str] = Field(default_factory=list)
+
+
+class TailoredBulletResult(BaseModel):
+    original: str = Field(min_length=1)
+    rewritten: str = Field(min_length=1)
+    keywords_used: list[str] = Field(default_factory=list)
+
+    model_config = {"extra": "forbid"}
+
+    @field_validator("original", "rewritten")
+    @classmethod
+    def validate_non_whitespace(cls, value: str) -> str:
+        if not value.strip():
+            raise ValueError("Bullet text cannot be blank")
+        return value
+
+
+class TailoredBulletOut(BaseModel):
+    id: UUID
+    target_id: UUID
+    project_id: UUID
+    original: str
+    rewritten: str
+    keywords_used: list[str]
+    unverified_tokens: list[str]
+    status: Literal["pending", "accepted", "rejected", "edited", "unverified"]
+
+    model_config = {"from_attributes": True}
+
+
+class TailoredBulletUpdate(BaseModel):
+    status: Literal["pending", "accepted", "rejected", "edited"]
+    rewritten: Optional[str] = Field(None, min_length=1)
+
+    @field_validator("rewritten")
+    @classmethod
+    def validate_rewritten_lines(cls, value: Optional[str]) -> Optional[str]:
+        if value is not None and len(value.splitlines()) > 2:
+            raise ValueError("Rewritten bullet must not exceed two lines")
+        return value
+
+    @model_validator(mode="after")
+    def validate_edited_text(self):
+        if self.status == "edited" and not self.rewritten:
+            raise ValueError("rewritten is required when status is edited")
+        if self.status != "edited" and self.rewritten is not None:
+            raise ValueError("rewritten can only be provided when status is edited")
+        return self
 
 
 class JobTargetUpdate(BaseModel):

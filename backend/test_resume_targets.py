@@ -11,7 +11,7 @@ from sqlalchemy.orm import Session, sessionmaker
 from sqlalchemy.pool import StaticPool
 
 from backend.api.routes import resume_targets
-from backend.api.target_schemas import JDParseResult
+from backend.api.target_schemas import JDParseResult, TailoredBulletResult
 from backend.api.routes import resume_profile
 from backend.auth.dependencies import get_current_user
 from backend.db.database import Base, get_db
@@ -157,6 +157,93 @@ def test_listing_input_loads_job_description_before_parsing(client, monkeypatch)
     assert target["role_title"] == "Backend Intern"
     assert "Build APIs and services." in received_text[0]
     assert "Python, SQL" in received_text[0]
+
+
+def test_tailored_bullet_review_routes_persist_and_enforce_ownership(
+    client, monkeypatch
+):
+    api, owner_id, other_user_id, _ = client
+    profile = api.post(
+        "/api/resume/profile",
+        json={"name": "Resume Owner"},
+        headers=_headers(owner_id),
+    )
+    assert profile.status_code == 201
+    project = api.post(
+        "/api/resume/profile/projects",
+        json={
+            "title": "Student API",
+            "tech_stack": ["Python"],
+            "bullets": ["Built an API for student records."],
+        },
+        headers=_headers(owner_id),
+    )
+    assert project.status_code == 201
+    monkeypatch.setattr(
+        resume_targets.llm_service,
+        "parse_job_description",
+        lambda _text: JDParseResult(keywords=["Python"]),
+    )
+    target = api.post(
+        "/api/resume/jd/parse",
+        json={"jd_text": "Build APIs with Python.", "company_name": "Example"},
+        headers=_headers(owner_id),
+    )
+    assert target.status_code == 201
+    target_id = target.json()["id"]
+    monkeypatch.setattr(
+        resume_targets.tailoring_service.llm,
+        "tailor_bullet",
+        lambda original, jd_keywords, company_name: TailoredBulletResult(
+            original=original,
+            rewritten="Built a Python API for student records.",
+            keywords_used=["Python"],
+        ),
+    )
+
+    tailored_url = f"/api/resume/targets/{target_id}/tailored-bullets"
+    tailored = api.post(tailored_url, headers=_headers(owner_id))
+    assert tailored.status_code == 200
+    assert len(tailored.json()) == 1
+    bullet = tailored.json()[0]
+    assert bullet["status"] == "pending"
+    assert bullet["project_id"] == project.json()["id"]
+    assert api.get(tailored_url, headers=_headers(owner_id)).json() == tailored.json()
+    assert api.get(tailored_url, headers=_headers(other_user_id)).status_code == 404
+
+    reviewed = api.patch(
+        f"{tailored_url}/{bullet['id']}",
+        json={
+            "status": "edited",
+            "rewritten": "Built and tested a Python API for student records.",
+        },
+        headers=_headers(owner_id),
+    )
+    assert reviewed.status_code == 200
+    assert reviewed.json()["status"] == "edited"
+    assert reviewed.json()["unverified_tokens"] == []
+    assert reviewed.json()["rewritten"].startswith("Built and tested")
+    assert api.patch(
+        f"{tailored_url}/{bullet['id']}",
+        json={"status": "accepted"},
+        headers=_headers(other_user_id),
+    ).status_code == 404
+    assert api.patch(
+        f"{tailored_url}/{bullet['id']}",
+        json={"status": "edited", "rewritten": "Too long\n" * 3},
+        headers=_headers(owner_id),
+    ).status_code == 422
+    unverified = api.patch(
+        f"{tailored_url}/{bullet['id']}",
+        json={
+            "status": "edited",
+            "rewritten": "Built an API that processed 50% more records.",
+        },
+        headers=_headers(owner_id),
+    )
+    assert unverified.status_code == 200
+    assert unverified.json()["status"] == "unverified"
+    assert unverified.json()["unverified_tokens"] == ["number: 50%"]
 
 
 def test_compile_job_endpoints_enforce_ownership_and_serve_artifacts(

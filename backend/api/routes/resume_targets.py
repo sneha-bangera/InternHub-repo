@@ -12,18 +12,22 @@ from sqlalchemy.orm import Session
 from backend.api.target_schemas import (
     JDParseRequest, JobTargetOut, JobTargetUpdate, ResumeCompileJobOut,
     OverleafSnippetOut, ResumeCompileRequest, ResumeSelectionOut,
+    TailoredBulletOut, TailoredBulletUpdate,
 )
 from backend.auth.dependencies import get_current_user
 from backend.celery_app import celery_app
 from backend.core.config import settings
 from backend.db.database import get_db
 from backend.db.models import (
-    JobTarget, Listing, Project, ResumeCompileJob, ResumeProfile, User,
+    JobTarget, Listing, Project, ResumeCompileJob, ResumeProfile,
+    TailoredBullet, User,
 )
 from backend.services.llm_service import (
     LLMConfigurationError, LLMServiceError, llm_service,
 )
 from backend.services.resume_selection_service import resume_selection_service
+from backend.services.bullet_guardrail import find_unverified_tokens
+from backend.services.tailoring_service import tailoring_service
 
 router = APIRouter(prefix="/api/resume", tags=["Resume Targets"])
 OVERLEAF_SNIPPET_TTL_SECONDS = 600
@@ -151,6 +155,92 @@ def update_target(
     db.commit()
     db.refresh(target)
     return target
+
+
+@router.post(
+    "/targets/{target_id}/tailored-bullets",
+    response_model=list[TailoredBulletOut],
+)
+def tailor_resume_bullets(
+    target_id: UUID,
+    db: Session = Depends(get_db),
+    current_user: User = Depends(get_current_user),
+):
+    target = _get_owned_target(db, target_id, current_user.id)
+    profile = db.scalars(
+        select(ResumeProfile).where(ResumeProfile.user_id == current_user.id)
+    ).first()
+    if profile is None:
+        raise HTTPException(status_code=404, detail="Resume profile not found")
+    try:
+        return tailoring_service.tailor_profile(db, target, profile)
+    except LLMConfigurationError as exc:
+        raise HTTPException(status_code=503, detail=str(exc)) from exc
+    except LLMServiceError as exc:
+        raise HTTPException(status_code=502, detail=str(exc)) from exc
+    except ValueError as exc:
+        raise HTTPException(status_code=422, detail=str(exc)) from exc
+
+
+@router.get(
+    "/targets/{target_id}/tailored-bullets",
+    response_model=list[TailoredBulletOut],
+)
+def list_tailored_bullets(
+    target_id: UUID,
+    db: Session = Depends(get_db),
+    current_user: User = Depends(get_current_user),
+):
+    _get_owned_target(db, target_id, current_user.id)
+    return db.scalars(
+        select(TailoredBullet)
+        .where(
+            TailoredBullet.target_id == target_id,
+            TailoredBullet.user_id == current_user.id,
+        )
+        .order_by(TailoredBullet.project_id, TailoredBullet.id)
+    ).all()
+
+
+@router.patch(
+    "/targets/{target_id}/tailored-bullets/{bullet_id}",
+    response_model=TailoredBulletOut,
+)
+def review_tailored_bullet(
+    target_id: UUID,
+    bullet_id: UUID,
+    body: TailoredBulletUpdate,
+    db: Session = Depends(get_db),
+    current_user: User = Depends(get_current_user),
+):
+    _get_owned_target(db, target_id, current_user.id)
+    bullet = db.scalars(
+        select(TailoredBullet).where(
+            TailoredBullet.id == bullet_id,
+            TailoredBullet.target_id == target_id,
+            TailoredBullet.user_id == current_user.id,
+        )
+    ).first()
+    if bullet is None:
+        raise HTTPException(status_code=404, detail="Tailored bullet not found")
+    if body.rewritten is not None:
+        bullet.rewritten = body.rewritten
+        project = db.get(Project, bullet.project_id)
+        if project is None:
+            raise HTTPException(status_code=404, detail="Resume project not found")
+        bullet.unverified_tokens = find_unverified_tokens(
+            bullet.original,
+            body.rewritten,
+            project.tech_stack,
+        )
+        bullet.status = (
+            "unverified" if bullet.unverified_tokens else body.status
+        )
+    else:
+        bullet.status = body.status
+    db.commit()
+    db.refresh(bullet)
+    return bullet
 
 
 @router.post(

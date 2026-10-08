@@ -127,6 +127,7 @@ class ResumeRenderService:
         profile: Any,
         selection: Any = None,
         sections: dict[str, bool] | None = None,
+        tailored_bullets: list[Any] | None = None,
     ) -> str:
         section_toggles = DEFAULT_SECTIONS.copy()
         if sections is not None:
@@ -136,6 +137,27 @@ class ResumeRenderService:
                     f"Unknown resume section(s): {', '.join(sorted(unknown_sections))}"
                 )
             section_toggles.update(sections)
+
+        tailored_by_project: dict[Any, list[Any]] = {}
+        tailored_project_ids = set()
+        for bullet in tailored_bullets or []:
+            project_id = _field(bullet, "project_id")
+            tailored_project_ids.add(project_id)
+            tailored_by_project.setdefault(project_id, []).append(bullet)
+
+        projects = []
+        for item in _selected_items(profile, selection, "projects"):
+            project = _item_context(item, "projects")
+            project_id = _field(item, "id")
+            if project_id in tailored_project_ids:
+                current_bullets = set(_field(item, "bullets", None) or [])
+                project["bullets"] = [
+                    _field(bullet, "rewritten", "")
+                    for bullet in tailored_by_project[project_id]
+                    if _field(bullet, "status") in {"accepted", "edited"}
+                    and _field(bullet, "original") in current_bullets
+                ]
+            projects.append(project)
 
         context = {
             "name": _field(profile, "name", ""),
@@ -147,10 +169,7 @@ class ResumeRenderService:
                 _item_context(item, "education")
                 for item in _field(profile, "education", None) or []
             ],
-            "projects": [
-                _item_context(item, "projects")
-                for item in _selected_items(profile, selection, "projects")
-            ],
+            "projects": projects,
             "skills": [
                 _item_context(item, "skills")
                 for item in _selected_items(profile, selection, "skills")

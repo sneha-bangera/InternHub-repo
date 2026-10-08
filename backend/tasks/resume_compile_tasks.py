@@ -5,10 +5,14 @@ import time
 from pathlib import Path
 from uuid import UUID
 
+from sqlalchemy import select
+
 from backend.celery_app import celery_app
 from backend.core.config import settings
 from backend.db.database import SessionLocal
-from backend.db.models import JobTarget, ResumeCompileJob, ResumeProfile
+from backend.db.models import (
+    JobTarget, ResumeCompileJob, ResumeProfile, TailoredBullet,
+)
 from backend.services.resume_render_service import resume_render_service
 from backend.services.resume_selection_service import resume_selection_service
 
@@ -87,10 +91,14 @@ def compile_resume(job_id: str) -> dict[str, str]:
                 for project_id in job.selected_project_ids
                 if project_id in projects_by_id
             ]
+        tailored_bullets = db.scalars(
+            select(TailoredBullet).where(TailoredBullet.target_id == target.id)
+        ).all()
         tex = resume_render_service.render(
             profile,
             selection=selection,
             sections=job.sections,
+            tailored_bullets=tailored_bullets,
         )
         result = _wait_for_compiler(UUID(job_id), tex)
 

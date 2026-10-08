@@ -135,6 +135,24 @@ export interface ResumeSelection {
   };
 }
 
+export type TailoredBulletStatus =
+  | "pending"
+  | "accepted"
+  | "rejected"
+  | "edited"
+  | "unverified";
+
+export interface TailoredBullet {
+  id: string;
+  target_id: string;
+  project_id: string;
+  original: string;
+  rewritten: string;
+  keywords_used: string[];
+  unverified_tokens: string[];
+  status: TailoredBulletStatus;
+}
+
 export interface ResumeCompileJob {
   id: string;
   target_id: string;

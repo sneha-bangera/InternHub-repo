@@ -82,6 +82,16 @@ limited to one CPU, 512 MiB of memory, and 20 seconds per job. Poll
 set `PUBLIC_API_URL` to the public HTTPS API origin; the app creates a
 10-minute signed read-only URL so Overleaf can fetch the `.tex` source.
 
+To tailor project bullets for a job target, call
+`POST /api/resume/targets/{id}/tailored-bullets`. Review suggestions with
+`GET /api/resume/targets/{id}/tailored-bullets`, then accept, reject, or edit an
+entry with `PATCH /api/resume/targets/{id}/tailored-bullets/{bullet_id}`. Only
+accepted and edited tailored bullets are included in compiled resumes. The
+code-based guardrail flags novel numbers, technologies, and proper nouns as
+`unverified` and returns those tokens for review. The versioned tailoring
+instructions are stored in
+`backend/prompts/tailoring/v1.txt`.
+
 ## Getting Started
 
 ### Prerequisites

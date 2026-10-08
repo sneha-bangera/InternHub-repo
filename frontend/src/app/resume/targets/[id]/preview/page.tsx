@@ -5,11 +5,16 @@ import Link from "next/link";
 import { useParams, useRouter } from "next/navigation";
 import {
   ArrowLeft,
+  AlertTriangle,
+  Check,
   Download,
   ExternalLink,
   FileText,
   GripVertical,
+  Pencil,
   RotateCcw,
+  Sparkles,
+  X,
 } from "lucide-react";
 import Navbar from "@/components/Navbar";
 import { api, getApiErrorMessage } from "@/lib/api";
@@ -21,6 +26,7 @@ import {
   ResumeCompileJob,
   ResumeSections,
   ResumeSelection,
+  TailoredBullet,
 } from "@/lib/types";
 
 const DEFAULT_PROJECT_LIMIT = 4;
@@ -125,6 +131,70 @@ function reorder<T>(items: T[], fromIndex: number, toIndex: number): T[] {
   return updated;
 }
 
+type WordDiffPart = { value: string; kind: "same" | "added" | "removed" };
+
+function wordDiff(original: string, rewritten: string): {
+  original: WordDiffPart[];
+  rewritten: WordDiffPart[];
+} {
+  const tokenize = (value: string) => value.match(/\s+|[\w+#.]+|[^\w\s]/gu) ?? [];
+  const left = tokenize(original);
+  const right = tokenize(rewritten);
+  const common = Array.from({ length: left.length + 1 }, () =>
+    Array<number>(right.length + 1).fill(0),
+  );
+  for (let i = left.length - 1; i >= 0; i -= 1) {
+    for (let j = right.length - 1; j >= 0; j -= 1) {
+      common[i][j] = left[i] === right[j]
+        ? common[i + 1][j + 1] + 1
+        : Math.max(common[i + 1][j], common[i][j + 1]);
+    }
+  }
+
+  const leftParts: WordDiffPart[] = [];
+  const rightParts: WordDiffPart[] = [];
+  let i = 0;
+  let j = 0;
+  while (i < left.length && j < right.length) {
+    if (left[i] === right[j]) {
+      leftParts.push({ value: left[i], kind: "same" });
+      rightParts.push({ value: right[j], kind: "same" });
+      i += 1;
+      j += 1;
+    } else if (common[i + 1][j] >= common[i][j + 1]) {
+      leftParts.push({ value: left[i], kind: "removed" });
+      i += 1;
+    } else {
+      rightParts.push({ value: right[j], kind: "added" });
+      j += 1;
+    }
+  }
+  while (i < left.length) leftParts.push({ value: left[i++], kind: "removed" });
+  while (j < right.length) rightParts.push({ value: right[j++], kind: "added" });
+  return { original: leftParts, rewritten: rightParts };
+}
+
+function DiffText({ parts }: { parts: WordDiffPart[] }) {
+  return (
+    <span className="whitespace-pre-wrap">
+      {parts.map((part, index) => (
+        <span
+          key={`${index}-${part.value}`}
+          className={
+            part.kind === "added"
+              ? "rounded bg-green-100 text-green-900"
+              : part.kind === "removed"
+                ? "rounded bg-red-100 text-red-900 line-through"
+                : undefined
+          }
+        >
+          {part.value}
+        </span>
+      ))}
+    </span>
+  );
+}
+
 export default function ResumeSelectionPreviewPage() {
   const router = useRouter();
   const { id: targetId } = useParams<{ id: string }>();
@@ -139,6 +209,13 @@ export default function ResumeSelectionPreviewPage() {
   const [pdfUrl, setPdfUrl] = useState("");
   const [compileError, setCompileError] = useState("");
   const [openingOverleaf, setOpeningOverleaf] = useState(false);
+  const [tailoredBullets, setTailoredBullets] = useState<TailoredBullet[]>([]);
+  const [tailoringLoading, setTailoringLoading] = useState(false);
+  const [tailoringError, setTailoringError] = useState("");
+  const [reviewingBulletId, setReviewingBulletId] = useState<string | null>(null);
+  const [editingBulletId, setEditingBulletId] = useState<string | null>(null);
+  const [editText, setEditText] = useState("");
+  const [refreshingAts, setRefreshingAts] = useState(false);
 
   useEffect(() => {
     if (!isLoggedIn()) {
@@ -150,10 +227,12 @@ export default function ResumeSelectionPreviewPage() {
       api.post<ResumeSelection>(`/api/resume/targets/${targetId}/select`, null, {
         params: { top_n: 20 },
       }),
+      api.get<TailoredBullet[]>(`/api/resume/targets/${targetId}/tailored-bullets`),
     ])
-      .then(([targetResponse, selectionResponse]) => {
+      .then(([targetResponse, selectionResponse, tailoredResponse]) => {
         setTarget(targetResponse.data);
         setSelection(selectionResponse.data);
+        setTailoredBullets(tailoredResponse.data);
         setSelectedProjectIds(
           selectionResponse.data.projects
             .slice(0, DEFAULT_PROJECT_LIMIT)
@@ -173,8 +252,20 @@ export default function ResumeSelectionPreviewPage() {
     );
     return selectedProjectIds
       .map((projectId) => projectsById.get(projectId))
-      .filter((project): project is ResumeProject => project !== undefined);
-  }, [selection, selectedProjectIds]);
+      .filter((project): project is ResumeProject => project !== undefined)
+      .map((project) => {
+        const approved = tailoredBullets.filter(
+          (bullet) =>
+            bullet.project_id === project.id &&
+            (bullet.status === "accepted" || bullet.status === "edited") &&
+            project.bullets.includes(bullet.original),
+        );
+        if (!tailoredBullets.some((bullet) => bullet.project_id === project.id)) {
+          return project;
+        }
+        return { ...project, bullets: approved.map((bullet) => bullet.rewritten) };
+      });
+  }, [selection, selectedProjectIds, tailoredBullets]);
 
   const afterCoverage = useMemo(() => {
     if (!target || !selection) return null;
@@ -185,6 +276,108 @@ export default function ResumeSelectionPreviewPage() {
       selection.certificates,
     );
   }, [target, selection, selectedProjects]);
+
+  async function refreshAtsScore() {
+    setRefreshingAts(true);
+    try {
+      const { data } = await api.post<ResumeSelection>(
+        `/api/resume/targets/${targetId}/select`,
+        null,
+        { params: { top_n: 20 } },
+      );
+      setSelection(data);
+    } catch (requestError: unknown) {
+      setTailoringError(
+        getApiErrorMessage(requestError, "Could not refresh the ATS score."),
+      );
+    } finally {
+      setRefreshingAts(false);
+    }
+  }
+
+  async function loadTailoredBullets() {
+    setTailoringLoading(true);
+    setTailoringError("");
+    try {
+      const { data } = await api.post<TailoredBullet[]>(
+        `/api/resume/targets/${targetId}/tailored-bullets`,
+      );
+      setTailoredBullets(data);
+      await refreshAtsScore();
+    } catch (requestError: unknown) {
+      setTailoringError(
+        getApiErrorMessage(requestError, "Could not generate tailored bullets."),
+      );
+    } finally {
+      setTailoringLoading(false);
+    }
+  }
+
+  async function reviewBullet(
+    bullet: TailoredBullet,
+    status: "accepted" | "rejected" | "edited",
+    rewritten?: string,
+  ) {
+    setReviewingBulletId(bullet.id);
+    setTailoringError("");
+    try {
+      const { data } = await api.patch<TailoredBullet>(
+        `/api/resume/targets/${targetId}/tailored-bullets/${bullet.id}`,
+        { status, ...(rewritten === undefined ? {} : { rewritten }) },
+      );
+      setTailoredBullets((current) =>
+        current.map((item) => (item.id === data.id ? data : item)),
+      );
+      setEditingBulletId(null);
+      await refreshAtsScore();
+    } catch (requestError: unknown) {
+      setTailoringError(
+        getApiErrorMessage(requestError, "Could not update this bullet."),
+      );
+    } finally {
+      setReviewingBulletId(null);
+    }
+  }
+
+  async function acceptAllVerified() {
+    const verified = tailoredBullets.filter(
+      (bullet) => bullet.status === "pending" && bullet.unverified_tokens.length === 0,
+    );
+    if (!verified.length) return;
+    setTailoringLoading(true);
+    setTailoringError("");
+    try {
+      const updated = await Promise.all(
+        verified.map(async (bullet) => {
+          const { data } = await api.patch<TailoredBullet>(
+            `/api/resume/targets/${targetId}/tailored-bullets/${bullet.id}`,
+            { status: "accepted" },
+          );
+          return data;
+        }),
+      );
+      const byId = new Map(updated.map((bullet) => [bullet.id, bullet]));
+      setTailoredBullets((current) =>
+        current.map((bullet) => byId.get(bullet.id) ?? bullet),
+      );
+      await refreshAtsScore();
+    } catch (requestError: unknown) {
+      setTailoringError(
+        getApiErrorMessage(requestError, "Could not accept all verified bullets."),
+      );
+      try {
+        const { data } = await api.get<TailoredBullet[]>(
+          `/api/resume/targets/${targetId}/tailored-bullets`,
+        );
+        setTailoredBullets(data);
+      } catch {
+        setTailoringError((message) => `${message} Review the bullet list before retrying.`);
+      }
+      await refreshAtsScore();
+    } finally {
+      setTailoringLoading(false);
+    }
+  }
 
   useEffect(() => {
     if (loading || !selection) return;
@@ -471,6 +664,194 @@ export default function ResumeSelectionPreviewPage() {
                   </div>
                 )}
               </section>
+            </section>
+
+            <section
+              aria-labelledby="tailoring-heading"
+              className="rounded-xl border border-slate-200 bg-white p-6"
+            >
+              <div className="flex flex-wrap items-center justify-between gap-3">
+                <div>
+                  <h2 id="tailoring-heading" className="text-lg font-semibold text-slate-900">
+                    Tailored bullet review
+                  </h2>
+                  <p className="mt-1 text-sm text-slate-500">
+                    Compare original and suggested wording, then approve only the bullets you want to include.
+                  </p>
+                </div>
+                <div className="flex flex-wrap gap-2">
+                  <button
+                    type="button"
+                    onClick={() => void loadTailoredBullets()}
+                    disabled={tailoringLoading || refreshingAts}
+                    className="inline-flex items-center gap-2 rounded-lg border border-slate-300 px-3 py-2 text-sm font-medium text-slate-700 hover:bg-slate-50 disabled:opacity-50"
+                  >
+                    <Sparkles size={16} />
+                    {tailoredBullets.length ? "Refresh suggestions" : "Generate suggestions"}
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => void acceptAllVerified()}
+                    disabled={
+                      tailoringLoading ||
+                      !tailoredBullets.some(
+                        (bullet) =>
+                          bullet.status === "pending" &&
+                          bullet.unverified_tokens.length === 0,
+                      )
+                    }
+                    className="inline-flex items-center gap-2 rounded-lg bg-green-700 px-3 py-2 text-sm font-semibold text-white hover:bg-green-800 disabled:opacity-50"
+                  >
+                    <Check size={16} />
+                    Accept all verified
+                  </button>
+                </div>
+              </div>
+              {tailoringError && (
+                <p role="alert" className="mt-4 rounded-lg border border-red-200 bg-red-50 px-3 py-2 text-sm text-red-700">
+                  {tailoringError}
+                </p>
+              )}
+              {refreshingAts && (
+                <p role="status" className="mt-3 text-xs text-slate-500">
+                  Refreshing ATS score…
+                </p>
+              )}
+              {tailoringLoading && tailoredBullets.length === 0 ? (
+                <p role="status" className="mt-5 text-sm text-slate-500">
+                  Generating bullet suggestions…
+                </p>
+              ) : tailoredBullets.length === 0 ? (
+                <p className="mt-5 rounded-lg border border-dashed border-slate-300 p-5 text-center text-sm text-slate-500">
+                  Generate suggestions to review tailored versions of your project bullets.
+                </p>
+              ) : (
+                <ul className="mt-5 space-y-4">
+                  {tailoredBullets.map((bullet) => {
+                    const diff = wordDiff(bullet.original, bullet.rewritten);
+                    const isEditing = editingBulletId === bullet.id;
+                    const isBusy = reviewingBulletId === bullet.id || tailoringLoading;
+                    return (
+                      <li
+                        key={bullet.id}
+                        className="rounded-lg border border-slate-200 p-4"
+                      >
+                        <div className="mb-3 flex flex-wrap items-center justify-between gap-2">
+                          <div className="flex flex-wrap items-center gap-2">
+                            <span className="text-sm font-semibold text-slate-900">
+                              {selection.projects.find(({ item }) => item.id === bullet.project_id)?.item.title ?? "Project bullet"}
+                            </span>
+                            <span className={`rounded-full px-2 py-0.5 text-xs font-semibold ${
+                              bullet.status === "accepted" || bullet.status === "edited"
+                                ? "bg-green-100 text-green-800"
+                                : bullet.status === "rejected"
+                                  ? "bg-slate-100 text-slate-600"
+                                  : bullet.status === "unverified"
+                                    ? "bg-amber-100 text-amber-900"
+                                    : "bg-blue-50 text-blue-700"
+                            }`}>
+                              {bullet.status}
+                            </span>
+                            {(bullet.status === "unverified" || bullet.unverified_tokens.length > 0) && (
+                              <span
+                                className="inline-flex items-center gap-1 rounded-full bg-amber-100 px-2 py-0.5 text-xs font-semibold text-amber-900"
+                                title={bullet.unverified_tokens.join(", ")}
+                              >
+                                <AlertTriangle size={13} />
+                                Unverified
+                              </span>
+                            )}
+                          </div>
+                          {bullet.unverified_tokens.length > 0 && (
+                            <p className="basis-full text-xs text-amber-900">
+                              New claims to review: {bullet.unverified_tokens.join(" · ")}
+                            </p>
+                          )}
+                        </div>
+                        <div className="grid gap-3 md:grid-cols-2">
+                          <div className="rounded-lg bg-slate-50 p-3">
+                            <p className="mb-2 text-xs font-semibold uppercase tracking-wide text-slate-500">
+                              Original
+                            </p>
+                            <p className="text-sm leading-relaxed text-slate-800">
+                              <DiffText parts={diff.original} />
+                            </p>
+                          </div>
+                          <div className="rounded-lg bg-slate-50 p-3">
+                            <p className="mb-2 text-xs font-semibold uppercase tracking-wide text-slate-500">
+                              Rewritten
+                            </p>
+                            {isEditing ? (
+                              <textarea
+                                aria-label={`Edit rewritten bullet for ${bullet.original}`}
+                                rows={3}
+                                value={editText}
+                                onChange={(event) => setEditText(event.target.value)}
+                                className="w-full rounded-lg border border-slate-300 bg-white px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-300"
+                              />
+                            ) : (
+                              <p className="text-sm leading-relaxed text-slate-800">
+                                <DiffText parts={diff.rewritten} />
+                              </p>
+                            )}
+                          </div>
+                        </div>
+                        <div className="mt-3 flex flex-wrap gap-2">
+                          {isEditing ? (
+                            <>
+                              <button
+                                type="button"
+                                onClick={() => void reviewBullet(bullet, "edited", editText)}
+                                disabled={isBusy || !editText.trim()}
+                                className="rounded-lg bg-blue-600 px-3 py-1.5 text-sm font-semibold text-white hover:bg-blue-700 disabled:opacity-50"
+                              >
+                                Save edit
+                              </button>
+                              <button
+                                type="button"
+                                onClick={() => setEditingBulletId(null)}
+                                className="rounded-lg border border-slate-300 px-3 py-1.5 text-sm font-medium text-slate-700 hover:bg-slate-50"
+                              >
+                                Cancel
+                              </button>
+                            </>
+                          ) : (
+                            <>
+                              <button
+                                type="button"
+                                onClick={() => void reviewBullet(bullet, "accepted")}
+                                disabled={isBusy || bullet.status === "accepted"}
+                                className="inline-flex items-center gap-1 rounded-lg bg-green-700 px-3 py-1.5 text-sm font-semibold text-white hover:bg-green-800 disabled:opacity-50"
+                              >
+                                <Check size={14} /> Accept
+                              </button>
+                              <button
+                                type="button"
+                                onClick={() => void reviewBullet(bullet, "rejected")}
+                                disabled={isBusy || bullet.status === "rejected"}
+                                className="inline-flex items-center gap-1 rounded-lg border border-slate-300 px-3 py-1.5 text-sm font-medium text-slate-700 hover:bg-slate-50 disabled:opacity-50"
+                              >
+                                <X size={14} /> Reject
+                              </button>
+                              <button
+                                type="button"
+                                onClick={() => {
+                                  setEditingBulletId(bullet.id);
+                                  setEditText(bullet.rewritten);
+                                }}
+                                disabled={isBusy}
+                                className="inline-flex items-center gap-1 rounded-lg border border-slate-300 px-3 py-1.5 text-sm font-medium text-slate-700 hover:bg-slate-50 disabled:opacity-50"
+                              >
+                                <Pencil size={14} /> Edit
+                              </button>
+                            </>
+                          )}
+                        </div>
+                      </li>
+                    );
+                  })}
+                </ul>
+              )}
             </section>
 
             <section aria-labelledby="projects-heading" className="rounded-xl border border-slate-200 bg-white p-6">
