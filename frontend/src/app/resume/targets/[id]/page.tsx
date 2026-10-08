@@ -116,6 +116,12 @@ export default function ResumeTargetPage() {
                   JD parsed
                 </span>
               </div>
+              <Link
+                href={`/resume/targets/${targetId}/preview`}
+                className="mt-5 inline-flex items-center rounded-lg bg-blue-600 px-4 py-2.5 text-sm font-semibold text-white hover:bg-blue-700"
+              >
+                Selection preview
+              </Link>
             </header>
 
             {error && (

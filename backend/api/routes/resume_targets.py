@@ -1,18 +1,19 @@
 from uuid import UUID
 
-from fastapi import APIRouter, Depends, HTTPException, status
+from fastapi import APIRouter, Depends, HTTPException, Query, status
 from sqlalchemy import select
 from sqlalchemy.orm import Session
 
 from backend.api.target_schemas import (
-    JDParseRequest, JobTargetOut, JobTargetUpdate,
+    JDParseRequest, JobTargetOut, JobTargetUpdate, ResumeSelectionOut,
 )
 from backend.auth.dependencies import get_current_user
 from backend.db.database import get_db
-from backend.db.models import JobTarget, Listing, User
+from backend.db.models import JobTarget, Listing, ResumeProfile, User
 from backend.services.llm_service import (
     LLMConfigurationError, LLMServiceError, llm_service,
 )
+from backend.services.resume_selection_service import resume_selection_service
 
 router = APIRouter(prefix="/api/resume", tags=["Resume Targets"])
 
@@ -118,3 +119,25 @@ def update_target(
     db.commit()
     db.refresh(target)
     return target
+
+
+@router.post(
+    "/targets/{target_id}/select",
+    response_model=ResumeSelectionOut,
+)
+def select_resume_content(
+    target_id: UUID,
+    top_n: int = Query(default=4, ge=0, le=20),
+    db: Session = Depends(get_db),
+    current_user: User = Depends(get_current_user),
+):
+    target = _get_owned_target(db, target_id, current_user.id)
+    profile = db.scalars(
+        select(ResumeProfile).where(ResumeProfile.user_id == current_user.id)
+    ).first()
+    if profile is None:
+        raise HTTPException(status_code=404, detail="Resume profile not found")
+    try:
+        return resume_selection_service.select(profile, target, top_n=top_n)
+    except ValueError as exc:
+        raise HTTPException(status_code=422, detail=str(exc)) from exc

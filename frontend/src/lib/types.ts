@@ -112,3 +112,25 @@ export interface JobTarget {
   created_at: string;
   updated_at: string;
 }
+
+export interface KeywordCoverage {
+  score: number;
+  matched_keywords: string[];
+  missing_keywords: string[];
+}
+
+export interface RankedResumeItem<T> {
+  item: T;
+  score: number;
+  matched_keywords: string[];
+}
+
+export interface ResumeSelection {
+  projects: RankedResumeItem<ResumeProject>[];
+  skills: RankedResumeItem<ResumeSkill>[];
+  certificates: RankedResumeItem<ResumeCertificate>[];
+  keyword_coverage: {
+    before: KeywordCoverage;
+    after: KeywordCoverage;
+  };
+}

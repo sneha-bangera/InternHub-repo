@@ -4,6 +4,8 @@ from uuid import UUID
 
 from pydantic import BaseModel, Field, model_validator
 
+from backend.api.resume_schemas import CertificateOut, ProjectOut, SkillOut
+
 
 class JDParseRequest(BaseModel):
     jd_text: Optional[str] = None
@@ -54,3 +56,34 @@ class JobTargetOut(BaseModel):
     updated_at: datetime
 
     model_config = {"from_attributes": True}
+
+
+class SelectedProjectOut(BaseModel):
+    item: ProjectOut
+    score: float
+    matched_keywords: list[str]
+
+
+class SelectedSkillOut(BaseModel):
+    item: SkillOut
+    score: float
+    matched_keywords: list[str]
+
+
+class SelectedCertificateOut(BaseModel):
+    item: CertificateOut
+    score: float
+    matched_keywords: list[str]
+
+
+class KeywordCoverageOut(BaseModel):
+    score: float
+    matched_keywords: list[str]
+    missing_keywords: list[str]
+
+
+class ResumeSelectionOut(BaseModel):
+    projects: list[SelectedProjectOut]
+    skills: list[SelectedSkillOut]
+    certificates: list[SelectedCertificateOut]
+    keyword_coverage: dict[str, KeywordCoverageOut]
