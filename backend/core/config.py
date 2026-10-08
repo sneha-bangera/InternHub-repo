@@ -16,6 +16,7 @@ class Settings(BaseSettings):
     TWILIO_WHATSAPP_FROM: str = ""
 
     FRONTEND_URL: str = "http://localhost:3000"
+    PUBLIC_API_URL: str = ""
 
     LLM_PROVIDER: str = "groq"
     GROQ_API_KEY: str = ""
@@ -24,6 +25,9 @@ class Settings(BaseSettings):
     OPENAI_MODEL: str = "gpt-4o-mini"
     LLM_TIMEOUT_SECONDS: float = 25.0
     LLM_MAX_RETRIES: int = 3
+
+    RESUME_COMPILE_DIR: Path = Path("backend/runtime/resume-compile")
+    RESUME_ARTIFACT_DIR: Path = Path("backend/runtime/resume-artifacts")
 
     class Config:
         env_file = Path(__file__).resolve().parent.parent / ".env"

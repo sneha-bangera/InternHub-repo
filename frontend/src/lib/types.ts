@@ -134,3 +134,22 @@ export interface ResumeSelection {
     after: KeywordCoverage;
   };
 }
+
+export interface ResumeCompileJob {
+  id: string;
+  target_id: string;
+  status: "queued" | "running" | "succeeded" | "failed";
+  error: string | null;
+  created_at: string;
+  updated_at: string;
+}
+
+export type ResumeSections = Record<
+  "contact" | "education" | "projects" | "skills" | "certificates",
+  boolean
+>;
+
+export interface OverleafSnippet {
+  snip_uri: string;
+  snip_name: string;
+}

@@ -1,4 +1,6 @@
 from collections.abc import Generator
+from pathlib import Path
+from types import SimpleNamespace
 from uuid import UUID, uuid4
 
 import pytest
@@ -10,9 +12,10 @@ from sqlalchemy.pool import StaticPool
 
 from backend.api.routes import resume_targets
 from backend.api.target_schemas import JDParseResult
+from backend.api.routes import resume_profile
 from backend.auth.dependencies import get_current_user
 from backend.db.database import Base, get_db
-from backend.db.models import Listing, User
+from backend.db.models import Listing, ResumeCompileJob, User
 
 
 @pytest.fixture
@@ -46,6 +49,8 @@ def client() -> Generator[tuple[TestClient, UUID, UUID, UUID], None, None]:
 
     app = FastAPI()
     app.include_router(resume_targets.router)
+    app.include_router(resume_profile.router)
+    app.state.test_session = test_session
 
     def override_get_db() -> Generator[Session, None, None]:
         with test_session() as db:
@@ -152,3 +157,102 @@ def test_listing_input_loads_job_description_before_parsing(client, monkeypatch)
     assert target["role_title"] == "Backend Intern"
     assert "Build APIs and services." in received_text[0]
     assert "Python, SQL" in received_text[0]
+
+
+def test_compile_job_endpoints_enforce_ownership_and_serve_artifacts(
+    client, monkeypatch, tmp_path: Path
+):
+    api, owner_id, other_user_id, _ = client
+    profile_response = api.post(
+        "/api/resume/profile",
+        json={"name": "Resume Owner", "email": "owner@example.com"},
+        headers=_headers(owner_id),
+    )
+    assert profile_response.status_code == 201
+
+    monkeypatch.setattr(
+        resume_targets.llm_service,
+        "parse_job_description",
+        lambda _text: JDParseResult(role_title="Developer"),
+    )
+    target_response = api.post(
+        "/api/resume/jd/parse",
+        json={"jd_text": "Build applications.", "company_name": "Example"},
+        headers=_headers(owner_id),
+    )
+    assert target_response.status_code == 201
+    target_id = target_response.json()["id"]
+
+    queued = []
+    monkeypatch.setattr(
+        resume_targets.celery_app,
+        "send_task",
+        lambda *args, **kwargs: queued.append((args, kwargs))
+        or SimpleNamespace(id=kwargs["task_id"]),
+    )
+    compile_response = api.post(
+        f"/api/resume/targets/{target_id}/compile",
+        json={
+            "sections": {"skills": False, "projects": False},
+            "selected_project_ids": [],
+        },
+        headers=_headers(owner_id),
+    )
+    assert compile_response.status_code == 202
+    job = compile_response.json()
+    assert job["status"] == "queued"
+    assert queued[0][0][0] == "backend.tasks.resume_compile_tasks.compile_resume"
+    assert queued[0][1]["task_id"] == job["id"]
+    with api.app.state.test_session() as db:
+        stored_job = db.get(ResumeCompileJob, UUID(job["id"]))
+        assert stored_job.sections["skills"] is False
+        assert stored_job.sections["education"] is True
+        assert stored_job.selected_project_ids == []
+
+    job_url = f"/api/resume/jobs/{job['id']}"
+    assert api.get(job_url, headers=_headers(owner_id)).status_code == 200
+    assert api.get(job_url, headers=_headers(other_user_id)).status_code == 404
+    assert api.get(
+        f"{job_url}/download/pdf", headers=_headers(owner_id)
+    ).status_code == 409
+    assert api.get(
+        f"{job_url}/download/tex", headers=_headers(owner_id)
+    ).status_code == 409
+
+    with api.app.state.test_session() as db:
+        compile_job = db.get(ResumeCompileJob, UUID(job["id"]))
+        compile_job.status = "succeeded"
+        db.commit()
+    monkeypatch.setattr(resume_targets.settings, "RESUME_ARTIFACT_DIR", tmp_path)
+    monkeypatch.setattr(
+        resume_targets.settings, "PUBLIC_API_URL", "https://api.example.test"
+    )
+    (tmp_path / f"{job['id']}.tex").write_text(r"\documentclass{article}", encoding="utf-8")
+    (tmp_path / f"{job['id']}.pdf").write_bytes(b"%PDF-test")
+
+    tex_response = api.get(
+        f"{job_url}/download/tex", headers=_headers(owner_id)
+    )
+    pdf_response = api.get(
+        f"{job_url}/download/pdf", headers=_headers(owner_id)
+    )
+    assert tex_response.status_code == 200
+    assert tex_response.text == r"\documentclass{article}"
+    assert pdf_response.status_code == 200
+    assert pdf_response.content == b"%PDF-test"
+    assert api.get(
+        f"{job_url}/download/pdf", headers=_headers(other_user_id)
+    ).status_code == 404
+
+    snippet = api.get(f"{job_url}/overleaf", headers=_headers(owner_id))
+    assert snippet.status_code == 200
+    assert snippet.json()["snip_name"].endswith(".tex")
+    snippet_uri = snippet.json()["snip_uri"]
+    signed_source = api.get(snippet_uri.replace("https://api.example.test", ""))
+    assert signed_source.status_code == 200
+    assert signed_source.text == r"\documentclass{article}"
+
+    invalid_signature = snippet_uri.replace("signature=", "signature=bad")
+    assert api.get(
+        invalid_signature.replace("https://api.example.test", "")
+    ).status_code == 403

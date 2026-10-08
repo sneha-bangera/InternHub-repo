@@ -10,6 +10,7 @@ venv/
 dist/
 build/
 .pytest_cache/
+backend/runtime/
 
 # Alembic
 alembic/versions/*.pyc

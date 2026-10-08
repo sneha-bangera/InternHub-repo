@@ -8,7 +8,8 @@ celery_app = Celery(
     backend=settings.REDIS_URL,
     include=[
         "backend.tasks.scraper_tasks", 
-        "backend.tasks.reminder_tasks"
+        "backend.tasks.reminder_tasks",
+        "backend.tasks.resume_compile_tasks",
     ],
 )
 

@@ -1,0 +1,86 @@
+\documentclass[letterpaper,11pt]{article}
+
+\usepackage[empty]{fullpage}
+\usepackage{titlesec}
+\usepackage{enumitem}
+\usepackage[hidelinks]{hyperref}
+\usepackage[T1]{fontenc}
+\usepackage{lmodern}
+\usepackage[utf8]{inputenc}
+\pagestyle{empty}
+\setlength{\tabcolsep}{0pt}
+\titleformat{\section}{\vspace{-4pt}\scshape\raggedright\large}{}{0em}{}[\titlerule \vspace{-5pt}]
+\setlist[itemize]{leftmargin=0.15in, itemsep=1pt, topsep=2pt}
+
+\begin{document}
+
+\begin{center}
+    {\Huge \scshape \VAR{name | latex_escape}} \\
+    \vspace{2pt}
+    \BLOCK{ if sections.contact }
+    \VAR{email | latex_escape}
+    \BLOCK{ if email and phone } $|$ \BLOCK{ endif }
+    \VAR{phone | latex_escape}
+    \BLOCK{ for link in links }
+    $|$ \href{\VAR{link | latex_escape}}{\VAR{link | latex_escape}}
+    \BLOCK{ endfor }
+    \BLOCK{ endif }
+\end{center}
+
+\BLOCK{ if sections.education and education }
+\section{Education}
+\BLOCK{ for entry in education }
+\textbf{\VAR{entry.institution | latex_escape}}
+\BLOCK{ if entry.dates } \hfill \VAR{entry.dates | latex_escape}\BLOCK{ endif } \\
+\BLOCK{ if entry.degree or entry.field_of_study }
+\VAR{entry.degree | latex_escape}
+\BLOCK{ if entry.degree and entry.field_of_study }, \BLOCK{ endif }
+\VAR{entry.field_of_study | latex_escape}
+\BLOCK{ endif }
+\BLOCK{ endfor }
+\BLOCK{ endif }
+
+\BLOCK{ if sections.projects and projects }
+\section{Projects}
+\begin{itemize}
+\BLOCK{ for project in projects }
+\item \textbf{\VAR{project.title | latex_escape}}
+\BLOCK{ if project.dates } \hfill \VAR{project.dates | latex_escape}\BLOCK{ endif }
+\BLOCK{ if project.url } (\href{\VAR{project.url | latex_escape}}{Link})\BLOCK{ endif }
+\BLOCK{ if project.tech_stack }
+\textit{Technologies:} \VAR{project.tech_stack | join(', ') | latex_escape}
+\BLOCK{ endif }
+\BLOCK{ for bullet in project.bullets }
+\begin{itemize}
+\item \VAR{bullet | latex_escape}
+\end{itemize}
+\BLOCK{ endfor }
+\BLOCK{ endfor }
+\end{itemize}
+\BLOCK{ endif }
+
+\BLOCK{ if sections.skills and skills }
+\section{Technical Skills}
+\begin{itemize}
+\BLOCK{ for skill in skills }
+\item
+\BLOCK{ if skill.category }\textbf{\VAR{skill.category | latex_escape}:} \BLOCK{ endif }
+\VAR{skill.name | latex_escape}
+\BLOCK{ if skill.proficiency } (\VAR{skill.proficiency | latex_escape})\BLOCK{ endif }
+\BLOCK{ endfor }
+\end{itemize}
+\BLOCK{ endif }
+
+\BLOCK{ if sections.certificates and certificates }
+\section{Certifications}
+\begin{itemize}
+\BLOCK{ for certificate in certificates }
+\item \textbf{\VAR{certificate.name | latex_escape}}
+\BLOCK{ if certificate.issuer } -- \VAR{certificate.issuer | latex_escape}\BLOCK{ endif }
+\BLOCK{ if certificate.date } \hfill \VAR{certificate.date | latex_escape}\BLOCK{ endif }
+\BLOCK{ if certificate.url } (\href{\VAR{certificate.url | latex_escape}}{Link})\BLOCK{ endif }
+\BLOCK{ endfor }
+\end{itemize}
+\BLOCK{ endif }
+
+\end{document}

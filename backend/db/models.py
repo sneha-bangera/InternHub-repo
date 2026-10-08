@@ -35,6 +35,9 @@ class User(Base):
     job_targets = relationship(
         "JobTarget", back_populates="user", cascade="all, delete-orphan"
     )
+    resume_compile_jobs = relationship(
+        "ResumeCompileJob", back_populates="user", cascade="all, delete-orphan"
+    )
 
 
 class Listing(Base):
@@ -218,3 +221,26 @@ class JobTarget(Base):
 
     user = relationship("User", back_populates="job_targets")
     listing = relationship("Listing")
+
+
+class ResumeCompileJob(Base):
+    __tablename__ = "resume_compile_jobs"
+
+    id = Column(UUID(as_uuid=True), primary_key=True, default=uuid.uuid4)
+    target_id = Column(
+        UUID(as_uuid=True), ForeignKey("job_targets.id", ondelete="CASCADE"),
+        nullable=False, index=True,
+    )
+    user_id = Column(
+        UUID(as_uuid=True), ForeignKey("users.id", ondelete="CASCADE"),
+        nullable=False, index=True,
+    )
+    status = Column(String(20), nullable=False, default="queued")
+    error = Column(Text, nullable=True)
+    sections = Column(JSON, nullable=False, default=dict)
+    selected_project_ids = Column(JSON, nullable=True)
+    created_at = Column(DateTime(timezone=True), default=utcnow, nullable=False)
+    updated_at = Column(DateTime(timezone=True), default=utcnow, onupdate=utcnow, nullable=False)
+
+    target = relationship("JobTarget")
+    user = relationship("User", back_populates="resume_compile_jobs")

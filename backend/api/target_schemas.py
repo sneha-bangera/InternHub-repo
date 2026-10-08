@@ -87,3 +87,40 @@ class ResumeSelectionOut(BaseModel):
     skills: list[SelectedSkillOut]
     certificates: list[SelectedCertificateOut]
     keyword_coverage: dict[str, KeywordCoverageOut]
+
+
+class ResumeCompileJobOut(BaseModel):
+    id: UUID
+    target_id: UUID
+    status: str
+    error: Optional[str] = None
+    created_at: datetime
+    updated_at: datetime
+
+    model_config = {"from_attributes": True}
+
+
+class ResumeCompileRequest(BaseModel):
+    sections: dict[str, bool] = Field(default_factory=dict)
+    selected_project_ids: list[UUID] | None = None
+
+    @model_validator(mode="after")
+    def validate_sections(self):
+        allowed_sections = {
+            "contact",
+            "education",
+            "projects",
+            "skills",
+            "certificates",
+        }
+        unknown_sections = self.sections.keys() - allowed_sections
+        if unknown_sections:
+            raise ValueError(
+                f"Unknown resume section(s): {', '.join(sorted(unknown_sections))}"
+            )
+        return self
+
+
+class OverleafSnippetOut(BaseModel):
+    snip_uri: str
+    snip_name: str

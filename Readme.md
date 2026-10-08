@@ -52,6 +52,7 @@ internhub/
 │   ├── db/                  # SQLAlchemy models, database session
 │   ├── tasks/               # Celery scraper + reminder tasks
 │   └── main.py              # FastAPI app
+├── templates/resume/        # Jinja2 LaTeX resume templates and manifests
 ├── alembic/                 # DB migrations
 ├── scraper/                 # Playwright scrapers (Internshala, LinkedIn, Wellfound)
 ├── nlp/                     # Sentence-transformer ranking
@@ -64,6 +65,22 @@ internhub/
 ```
 
 ---
+
+Resume LaTeX templates are rendered by `backend.services.resume_render_service`.
+The bundled Jake-style template is at `templates/resume/jake/`; its manifest
+lists the supported independently toggleable sections. Rendered user values are
+passed through the `latex_escape` filter.
+
+Resume PDFs are compiled asynchronously by the `resume-compiler` Docker Compose
+service. Configure `.env` from `.env.example`, run `docker compose up --build`,
+then apply database migrations with
+`docker compose exec api alembic upgrade head`. The compiler has no network
+access, runs Tectonic in untrusted mode with shell escape disabled, and is
+limited to one CPU, 512 MiB of memory, and 20 seconds per job. Poll
+`GET /api/resume/jobs/{id}` and download generated files from the authenticated
+`/api/resume/jobs/{id}/download/tex` and `/pdf` endpoints. For Overleaf import,
+set `PUBLIC_API_URL` to the public HTTPS API origin; the app creates a
+10-minute signed read-only URL so Overleaf can fetch the `.tex` source.
 
 ## Getting Started
 
@@ -173,4 +190,3 @@ Cache is automatically invalidated in `crud.upsert_listing()` whenever a scraper
 | POST | `/reminders/test` | Send test WhatsApp |
 
 ---
-

@@ -1,0 +1,13 @@
+{
+  "id": "jake",
+  "name": "Jake's Resume",
+  "description": "A compact, ATS-friendly resume layout inspired by Jake's Resume.",
+  "template": "resume.tex.j2",
+  "sections": [
+    "contact",
+    "education",
+    "projects",
+    "skills",
+    "certificates"
+  ]
+}
