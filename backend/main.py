@@ -11,6 +11,8 @@ from backend.api.routes.applications import router as applications_router
 from backend.api.routes.skills import router as skills_router
 from backend.api.routes.scraper import router as scraper_router
 from backend.api.routes.reminders import router as reminders_router
+from backend.api.routes.resume_profile import router as resume_profile_router
+from backend.api.routes.resume_targets import router as resume_targets_router
 
 app = FastAPI(title="InternHub API", version="1.0.0")
 
@@ -30,6 +32,8 @@ app.include_router(applications_router)
 app.include_router(skills_router)
 app.include_router(scraper_router)
 app.include_router(reminders_router)
+app.include_router(resume_profile_router)
+app.include_router(resume_targets_router)
 
 
 @app.get("/health", tags=["Health"])

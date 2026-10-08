@@ -17,6 +17,14 @@ class Settings(BaseSettings):
 
     FRONTEND_URL: str = "http://localhost:3000"
 
+    LLM_PROVIDER: str = "groq"
+    GROQ_API_KEY: str = ""
+    GROQ_MODEL: str = "llama-3.3-70b-versatile"
+    OPENAI_API_KEY: str = ""
+    OPENAI_MODEL: str = "gpt-4o-mini"
+    LLM_TIMEOUT_SECONDS: float = 25.0
+    LLM_MAX_RETRIES: int = 3
+
     class Config:
         env_file = Path(__file__).resolve().parent.parent / ".env"
         env_file_encoding = "utf-8"

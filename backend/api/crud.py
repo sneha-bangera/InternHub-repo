@@ -26,6 +26,13 @@ def get_listings(db, page=1, page_size=20, platform=None, search=None):
 
 
 def upsert_listing(db: Session, data: dict) -> Listing:
+    """
+    Insert or update a listing by (source_platform, external_id).
+    Invalidates the Redis embedding cache on update so stale
+    embeddings don't persist after scraper runs.
+    """
+    from nlp.matcher import invalidate_listing_embedding
+
     existing = db.scalars(
         select(Listing).where(
             Listing.source_platform == data["source_platform"],
@@ -37,6 +44,8 @@ def upsert_listing(db: Session, data: dict) -> Listing:
             setattr(existing, k, v)
         db.commit()
         db.refresh(existing)
+        # Invalidate cached embedding-listing content may have changed
+        invalidate_listing_embedding(str(existing.id))
         return existing
     listing = Listing(**data)
     db.add(listing)

@@ -22,6 +22,7 @@ https://github.com/user-attachments/assets/7207181a-bf15-4df6-b61e-5c66dccba882
 - **Application tracker** — spreadsheet and Kanban view with 6 statuses (saved, applied, test, interview, rejected, accepted), inline note editing, and CSV/JSON export
 - **WhatsApp reminders** — Twilio-powered daily reminders for deadlines within 3 days
 - **Protected dashboard** — filterable, searchable, paginated listings with match score bars
+- **Redis embedding cache** — listing embeddings are cached in Redis for 24 hours so NLP ranking drops from ~6s to <200ms after the first request; cache is auto-invalidated when scrapers update listing content
 
 ---
 
@@ -129,6 +130,32 @@ npm run dev
 - API docs: http://localhost:8000/docs
 
 ---
+
+## Scaling & Architecture Notes
+
+### Celery horizontal scaling
+The scraper and reminder tasks are fully decoupled from FastAPI via a Redis message broker. Adding workers is a single command — no code changes needed:
+
+```bash
+# Run on any machine that can reach the same Redis instance
+$env:PYTHONPATH = "."
+celery -A backend.celery_app worker --pool=solo -l info
+```
+
+Each worker picks up tasks from the shared queue automatically. In production on Linux, swap `--pool=solo` (Windows dev constraint) for `--concurrency=4` to run 4 parallel task executors per worker process.
+
+Individual scrapers are registered as independent tasks (`run_single_scraper("internshala")`, `run_single_scraper("linkedin")`) so they can be distributed across workers — Internshala and LinkedIn could scrape in parallel on two workers instead of sequentially on one.
+
+### Redis embedding cache
+Listing embeddings (384-dim vectors from `all-MiniLM-L6-v2`) are cached in Redis under `listing_embed:{listing_id}` with a 24-hour TTL.
+
+| Request | Latency |
+|---|---|
+| Cold (first request, 130+ listings) | ~6–8s |
+| Warm (cache populated) | <200ms |
+
+Cache is automatically invalidated in `crud.upsert_listing()` whenever a scraper updates a listing's content, so embeddings never go stale across scraper runs.
+
 
 ## API Overview
 

@@ -1,7 +1,9 @@
 "use client";
 import Link from "next/link";
 import { usePathname } from "next/navigation";
-import { LayoutDashboard, ClipboardList, User, LogOut, Target } from "lucide-react";
+import {
+  LayoutDashboard, ClipboardList, User, LogOut, Target, FileUser, Plus,
+} from "lucide-react";
 import { useAuth } from "@/hooks/useAuth";
 
 export default function Navbar() {
@@ -32,6 +34,14 @@ export default function Navbar() {
           <Link href="/profile" className={linkClass("/profile")}>
             <User size={16} />
             Profile
+          </Link>
+          <Link href="/resume/profile" className={linkClass("/resume/profile")}>
+            <FileUser size={16} />
+            Resume
+          </Link>
+          <Link href="/resume/targets/new" className={linkClass("/resume/targets/new")}>
+            <Plus size={16} />
+            New Target
           </Link>
           <div className="flex items-center gap-3 pl-4 border-l border-slate-200">
             <span className="text-sm text-slate-500 hidden sm:block">{user?.full_name}</span>

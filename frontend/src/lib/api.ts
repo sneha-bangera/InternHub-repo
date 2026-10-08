@@ -1,5 +1,20 @@
 import axios from "axios";
 
+interface ApiErrorResponse {
+  detail?: string;
+}
+
+export function getApiErrorMessage(error: unknown, fallback: string): string {
+  if (axios.isAxiosError<ApiErrorResponse>(error)) {
+    return error.response?.data?.detail || fallback;
+  }
+  return fallback;
+}
+
+export function isApiNotFound(error: unknown): boolean {
+  return axios.isAxiosError(error) && error.response?.status === 404;
+}
+
 export const api = axios.create({
   baseURL: process.env.NEXT_PUBLIC_API_URL || "http://localhost:8000",
   withCredentials: false,

@@ -2,7 +2,7 @@ import uuid
 from datetime import datetime, timezone
 
 from sqlalchemy import (
-    Boolean, Column, DateTime, Float,
+    Boolean, Column, Date, DateTime, Float, JSON,
     ForeignKey, String, Text, UniqueConstraint,
 )
 from sqlalchemy.dialects.postgresql import UUID
@@ -29,6 +29,12 @@ class User(Base):
 
     skills = relationship("UserSkill", back_populates="user", cascade="all, delete-orphan")
     applications = relationship("Application", back_populates="user", cascade="all, delete-orphan")
+    resume_profile = relationship(
+        "ResumeProfile", back_populates="user", uselist=False, cascade="all, delete-orphan"
+    )
+    job_targets = relationship(
+        "JobTarget", back_populates="user", cascade="all, delete-orphan"
+    )
 
 
 class Listing(Base):
@@ -92,3 +98,123 @@ class Application(Base):
 
     user = relationship("User", back_populates="applications")
     listing = relationship("Listing", back_populates="applications")
+
+
+class ResumeProfile(Base):
+    __tablename__ = "resume_profiles"
+
+    id = Column(UUID(as_uuid=True), primary_key=True, default=uuid.uuid4)
+    user_id = Column(
+        UUID(as_uuid=True), ForeignKey("users.id", ondelete="CASCADE"),
+        nullable=False, unique=True,
+    )
+    name = Column(String(255), nullable=False)
+    email = Column(String(255), nullable=True)
+    phone = Column(String(50), nullable=True)
+    links = Column(JSON, nullable=False, default=list)
+
+    user = relationship("User", back_populates="resume_profile")
+    education = relationship(
+        "Education", back_populates="profile", cascade="all, delete-orphan"
+    )
+    projects = relationship(
+        "Project", back_populates="profile", cascade="all, delete-orphan"
+    )
+    skills = relationship(
+        "Skill", back_populates="profile", cascade="all, delete-orphan"
+    )
+    certificates = relationship(
+        "Certificate", back_populates="profile", cascade="all, delete-orphan"
+    )
+
+
+class Education(Base):
+    __tablename__ = "resume_education"
+
+    id = Column(UUID(as_uuid=True), primary_key=True, default=uuid.uuid4)
+    profile_id = Column(
+        UUID(as_uuid=True), ForeignKey("resume_profiles.id", ondelete="CASCADE"),
+        nullable=False, index=True,
+    )
+    institution = Column(String(255), nullable=False)
+    degree = Column(String(255), nullable=True)
+    field_of_study = Column(String(255), nullable=True)
+    start_date = Column(Date, nullable=True)
+    end_date = Column(Date, nullable=True)
+
+    profile = relationship("ResumeProfile", back_populates="education")
+
+
+class Project(Base):
+    __tablename__ = "resume_projects"
+
+    id = Column(UUID(as_uuid=True), primary_key=True, default=uuid.uuid4)
+    profile_id = Column(
+        UUID(as_uuid=True), ForeignKey("resume_profiles.id", ondelete="CASCADE"),
+        nullable=False, index=True,
+    )
+    title = Column(String(255), nullable=False)
+    tech_stack = Column(JSON, nullable=False, default=list)
+    bullets = Column(JSON, nullable=False, default=list)
+    start_date = Column(Date, nullable=True)
+    end_date = Column(Date, nullable=True)
+    url = Column(Text, nullable=True)
+
+    profile = relationship("ResumeProfile", back_populates="projects")
+
+
+class Skill(Base):
+    __tablename__ = "resume_skills"
+
+    id = Column(UUID(as_uuid=True), primary_key=True, default=uuid.uuid4)
+    profile_id = Column(
+        UUID(as_uuid=True), ForeignKey("resume_profiles.id", ondelete="CASCADE"),
+        nullable=False, index=True,
+    )
+    name = Column(String(100), nullable=False)
+    category = Column(String(100), nullable=True)
+    proficiency = Column(String(50), nullable=True)
+
+    profile = relationship("ResumeProfile", back_populates="skills")
+
+
+class Certificate(Base):
+    __tablename__ = "resume_certificates"
+
+    id = Column(UUID(as_uuid=True), primary_key=True, default=uuid.uuid4)
+    profile_id = Column(
+        UUID(as_uuid=True), ForeignKey("resume_profiles.id", ondelete="CASCADE"),
+        nullable=False, index=True,
+    )
+    name = Column(String(255), nullable=False)
+    issuer = Column(String(255), nullable=True)
+    date = Column(Date, nullable=True)
+    url = Column(Text, nullable=True)
+
+    profile = relationship("ResumeProfile", back_populates="certificates")
+
+
+class JobTarget(Base):
+    __tablename__ = "job_targets"
+
+    id = Column(UUID(as_uuid=True), primary_key=True, default=uuid.uuid4)
+    user_id = Column(
+        UUID(as_uuid=True), ForeignKey("users.id", ondelete="CASCADE"),
+        nullable=False, index=True,
+    )
+    listing_id = Column(
+        UUID(as_uuid=True), ForeignKey("listings.id", ondelete="SET NULL"),
+        nullable=True,
+    )
+    company_name = Column(String(255), nullable=False)
+    role_title = Column(String(255), nullable=True)
+    seniority = Column(String(100), nullable=True)
+    jd_text = Column(Text, nullable=False)
+    required_skills = Column(JSON, nullable=False, default=list)
+    preferred_skills = Column(JSON, nullable=False, default=list)
+    keywords = Column(JSON, nullable=False, default=list)
+    created_at = Column(DateTime(timezone=True), default=utcnow, nullable=False)
+    updated_at = Column(DateTime(timezone=True), default=utcnow, onupdate=utcnow, nullable=False)
+
+    user = relationship("User", back_populates="job_targets")
+    listing = relationship("Listing")
